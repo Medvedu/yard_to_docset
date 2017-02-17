@@ -1,0 +1,7 @@
+.idea
+
+/tmp/*
+!/tmp/.gitkeep
+
+Gemfile.lock
+*.gem

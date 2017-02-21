@@ -1,0 +1,1 @@
+#header, .showSource, .inheritanceTree, .inheritName, h2 small { display: none; } .source_code, .fullTree { display: block !important; }

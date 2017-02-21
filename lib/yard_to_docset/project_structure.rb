@@ -9,10 +9,13 @@ module YardToDocset
   require 'tempfile'
   require 'tmpdir'
   require 'rubygems/package'
+  require 'pathname'
 
   # === Dependencies from rubygems.org
 
   require 'yard'
+  require 'sqlite3'
+  require 'nokogiri'
 
   # === Project structure
 
@@ -33,10 +36,8 @@ module YardToDocset
 
   # === Core
 
-  load files: %w(rdoc)
+  load folder: 'docset',
+       files: %w(structure database parser constructor)
 
-  # === Command-Line-Interface
-
-  load files: %w(cli)
-
+  load files: %w(yard docset cli)
 end # module YardToDocset

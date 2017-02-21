@@ -3,45 +3,51 @@
 module YardToDocset
   module Yard
     ##
-    # Generates +Yard+ documentation.
+    # Generates +Yard+ documentation from local ruby sources or through
+    # gem download from rubygems.org.
     #
-    # @example Yard generation throw gem download
+    # @example Yard generation through gem download
     #   dir = File.expand_path('~/downloads')
-    #   YardToDocset::Yard.generate dir, gem_name: 'sequel'
+    #   YardToDocset::Yard.generate dir, gem: 'sequel'
+    #
+    # @example Yard generation from local sources
+    #   dir = File.expand_path('~/downloads')
+    #   YardToDocset::Yard.generate dir, sources: __dir__
     #
     # @exception DirectoryNotExists
     #   @see Yard#DirectoryNotExists
+    #
     # @exception ParamsNotSpecified
     #   @see Yard#ParamsNotSpecified
     #
     # @param [String] path_to_yardoc
-    #   Path where generated Yard gonna be saved.
+    #   Path where a folder with generated yard doc will be saved.
     #
     # @param [Hash] params
-    # @option params [String] :gem_name (nil)
-    #    When used it downloads gem from www.rubydoc.info.
-    # @option params [String] :path_to_sources (nil)
-    #   When used it generates Yard from code sources.
+    # @option params [String] :gem (nil)
+    #   When used it downloads gem from rubygems.org
+    # @option params [String] :sources (nil)
+    #   When used it generates yard docs from local code sources.
 
     def self.generate(path_to_yardoc, **params)
       if !File.directory?(path_to_yardoc)
         raise DirectoryNotExists, path_to_yardoc
 
-      elsif !(params[:gem_name] || params[:path_to_sources])
+      elsif !(params[:gem] || params[:sources])
         raise ParamsNotSpecified
 
-      elsif params[:gem_name]
-        download_from_rubydoc params[:gem_name], path_to_yardoc
+      elsif params[:gem]
+        download_from_rubygems params[:gem], path_to_yardoc
 
-      elsif params[:path_to_sources]
-        parse_sources params[:path_to_sources], path_to_yardoc
+      elsif params[:sources]
+        parse_sources params[:sources], path_to_yardoc
       end
     end
 
     # @param [String] gem_name
     # @param [String] path_to_yardoc
 
-    def self.download_from_rubydoc(gem_name, path_to_yardoc)
+    def self.download_from_rubygems(gem_name, path_to_yardoc)
       direct_gem_download_url =
         begin
           url = "https://rubygems.org/api/v1/gems/%s.json" % gem_name.downcase
@@ -50,23 +56,24 @@ module YardToDocset
           JSON[response]["gem_uri"]
         end
 
-      dir_with_sources =
+      dir_with_sources_tmp =
         begin
           binary_data = send_request direct_gem_download_url
-          dir_with_sources = Dir.mktmpdir
+          dir_with_sources_tmp = Dir.mktmpdir
           Tempfile.create('gem') do |file|
             file.write binary_data
             gem = Gem::Package.new file.path
-            gem.extract_files dir_with_sources
+            gem.extract_files dir_with_sources_tmp
           end
 
-          dir_with_sources
+          dir_with_sources_tmp
         end
 
-      parse_sources dir_with_sources, path_to_yardoc
-      FileUtils.remove_entry dir_with_sources
+      path_to_yardoc = File.join path_to_yardoc, gem_name
+      parse_sources dir_with_sources_tmp, path_to_yardoc
+      FileUtils.remove_entry_secure dir_with_sources_tmp
     end
-    private_class_method :download_from_rubydoc
+    private_class_method :download_from_rubygems
 
     ##
     # Generates Yard documentation from ruby sources.
@@ -82,7 +89,9 @@ module YardToDocset
         raise SourcesNotFound, path_to_sources
       end
 
-      YARD::CLI::Yardoc.run path_to_sources, "-o", path_to_yardoc, "-q"
+      yardoc_cache_tmp_dir = Dir.mktmpdir
+      YARD::CLI::Yardoc.run path_to_sources, "-o", path_to_yardoc, "-q", "-b", yardoc_cache_tmp_dir
+      FileUtils.remove_entry_secure yardoc_cache_tmp_dir
     end
     private_class_method :parse_sources
 
@@ -100,12 +109,12 @@ module YardToDocset
         raise ConnectionError.new response.code, response.message
       end
 
-      response.body
+      return response.body
     end
     private_class_method :send_request
 
     ##
-    # Exception raised when Yard#parse_sources called with dir without any files.
+    # Exception raised when directory with sources not exists or empty.
 
     class SourcesNotFound < Error
       def initialize(directory); super "Directory with sources '#{directory}' not exists or empty!" end; end
@@ -126,6 +135,6 @@ module YardToDocset
     # Exception raised when connection fails.
 
     class ConnectionError < Error
-      def initialize(code, message); super "Connection refused by remote server. Error code: '#{code}', Exception message: '#{message}'." end; end
+      def initialize(code, message); super "Connection error! Code: '#{code}', Message: '#{message}'." end; end
   end # module Yard
 end # module YardToDocset

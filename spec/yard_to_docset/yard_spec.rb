@@ -18,7 +18,7 @@ module YardToDocset
 
     context '#download_from_rubydoc' do
       it 'raises an exception when private method called' do
-        expect { described_class.download_from_rubydoc }
+        expect { described_class.download_from_rubygems }
           .to raise_exception NoMethodError
       end
     end # context 'download_from_rubydoc'

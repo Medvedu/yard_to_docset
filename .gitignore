@@ -1,7 +1,10 @@
 .idea
 
-/tmp/*
+/tmp/**/*
 !/tmp/.gitkeep
+
+/spec/tmp/**/*
+!/spec/tmp/.gitkeep
 
 Gemfile.lock
 *.gem
